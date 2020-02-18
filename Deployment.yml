@@ -1,0 +1,63 @@
+---
+Description: Twitch viewer.
+
+Parameters:
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+    - t2.micro
+  ListnerUsername:
+    Description: Username of account that is listning
+    Type: String
+  Channel:
+    Type: String
+    Description: Who you want to listen 
+    Default: pokelawls
+  TwitchApiKey:
+    Type: String
+    Description: Twitch api key
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: SSH key name for EC2 instances
+
+Resources:
+
+  EC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: "ami-035966e8adab4aaad"
+      InstanceType: "t2.micro"
+      SecurityGroups:
+      - Ref: InstanceSecurityGroup
+      KeyName: !Ref KeyName
+      BlockDeviceMappings: 
+      - DeviceName: "/dev/sda1"
+        Ebs: 
+          VolumeType: "gp2"
+          VolumeSize: "8"
+      UserData:
+       Fn::Base64: !Sub |
+          #!/bin/bash -x
+          apt-get update
+          apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          add-apt-repository \
+            "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) \
+            stable"
+          apt-get update
+          apt-get install -y docker-ce
+          usermod -aG docker ubuntu
+          docker run -d -v /tmp:/home/app/vol -e NAME=${ListnerUsername} -e API_KEY=${TwitchApiKey} -e CHANNEL=${Channel} --restart always a1t3r73t3/twitchviewer:master
+        
+  InstanceSecurityGroup:  
+      Type: 'AWS::EC2::SecurityGroup'  
+      Properties:  
+        GroupDescription: Enable SSH access via port 22  
+        SecurityGroupIngress:  
+          IpProtocol: tcp  
+          FromPort: 22  
+          ToPort: 22  
+          CidrIp: 0.0.0.0/0
