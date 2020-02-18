@@ -50,7 +50,7 @@ Resources:
           apt-get update
           apt-get install -y docker-ce
           usermod -aG docker ubuntu
-          docker run -d -v /tmp:/home/app/vol -e NAME=${ListnerUsername} -e API_KEY=${TwitchApiKey} -e CHANNEL=${Channel} --restart always a1t3r73t3/twitchviewer:master
+          docker run -d -v /tmp:/home/app/vol -e NAME=${ListnerUsername} -e API_KEY=${TwitchApiKey} -e CHANNEL=${Channel} --restart always a1t3r73t3/viewer:v0.01
         
   InstanceSecurityGroup:  
       Type: 'AWS::EC2::SecurityGroup'  

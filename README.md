@@ -1,5 +1,7 @@
 # TCAD
 
+##Twitch Chat Analyzer DANKHACKERMANS
+
 Quick start:
 ```
 aws cloudformation create-stack --template-body file://Deployment.yml --stack-name sodapoppin-viewer --parameters ParameterKey=ListnerUsername,ParameterValue=${NAME} ParameterKey=TwitchApiKey,ParameterValue=${API_KEY} ParameterKey=Channel,ParameterValue=sodapoppin ParameterKey=KeyName,ParameterValue=test-key
