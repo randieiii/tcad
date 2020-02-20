@@ -1,11 +1,28 @@
 const tmi = require('tmi.js');
 const fs = require('fs');
 const cowsay = require('cowsay');
+const { Pool, Client } = require('pg')
+
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const CHANNEL = process.env.CHANNEL
 const NAME = process.env.NAME
 const API_KEY = process.env.API_KEY
+const DB = {
+  user: process.env.DBUSER,
+  host: process.env.DBHOST,
+  database: process.env.DB,
+  password: process.env.DBPASSWORD,
+  port: 5432,
+}
 
+const dbclient = new Client(DB)
+dbclient.connect()
+
+dbclient.query(`CREATE TABLE IF NOT EXISTS ${CHANNEL} (id serial PRIMARY KEY, username VARCHAR (64) NOT NULL, msg TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`, (err, res) => {
+  console.log(err, res)
+  dbclient.end()
+})
+const pool = new Pool(DB)
 // Define configuration options
 const opts = {
   identity: {
@@ -19,7 +36,7 @@ const opts = {
 // Create a client with our options
 const client = new tmi.client(opts);
 const exclude = [""]
-// let writeStream = fs.createWriteStream(`./vol/chat${Date.now()}.txt`);
+let writeStream = fs.createWriteStream(`./vol/chat${Date.now()}.txt`);
 const csvWriter = createCsvWriter({
   path: `./vol/chat${Date.now()}.txt`,
   header: [
@@ -44,11 +61,13 @@ function onMessageHandler (target, context, msg, self) {
       cow : 'C3PO',
       mode: 'g'
     }) )  
-    // console.log(context)
+
     csvWriter.writeRecords([
       {username: context.username,  msg: msg}
     ])
-    // writeStream.write(`${msg}\n`);
+    pool.query(`INSERT into ${CHANNEL} (username, msg) VALUES($1, $2);`, [context.username, msg], (err, res) => {
+      console.log(err, res)
+    })
   }
 }
 

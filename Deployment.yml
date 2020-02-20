@@ -21,16 +21,38 @@ Parameters:
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
     Description: SSH key name for EC2 instances
+  DBPASS: 
+    Type: String
+    Description: postgres password
 
 Resources:
 
-  EC2Instance: 
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    Properties:
+      AllocatedStorage: '10'
+      DBInstanceClass: db.t2.micro
+      Engine: postgres
+      EngineVersion: "11.5"
+      MasterUsername: postgres
+      MasterUserPassword: !Ref DBPASS
+      StorageType: gp2
+      VPCSecurityGroups:
+        - !GetAtt DBSecurityGroup.GroupId 
+      Tags:
+        - Key: Resource
+          Value: DBInstance
+
+  Viewer: 
     Type: AWS::EC2::Instance
+    DependsOn: DBInstance
     Properties: 
       ImageId: "ami-035966e8adab4aaad"
       InstanceType: "t2.micro"
       SecurityGroups:
-      - Ref: InstanceSecurityGroup
+      - Ref: SSHSecurityGroup
+      - Ref: DBClientSecurityGroup
       KeyName: !Ref KeyName
       BlockDeviceMappings: 
       - DeviceName: "/dev/sda1"
@@ -50,9 +72,77 @@ Resources:
           apt-get update
           apt-get install -y docker-ce
           usermod -aG docker ubuntu
-          docker run -d -v /tmp:/home/app/vol -e NAME=${ListnerUsername} -e API_KEY=${TwitchApiKey} -e CHANNEL=${Channel} --restart always a1t3r73t3/viewer:v0.01
-        
-  InstanceSecurityGroup:  
+          apt-get -y install python-pip
+          pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+          /usr/local/bin/cfn-init -v --stack ${AWS::StackName} --resource Viewer --configsets default --region ${AWS::Region}
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default: 
+           - config1
+        config1:
+          commands:
+            customize: 
+              command: docker run -d -v /tmp:/home/app/vol -e DBPASSWORD=${DBPASS} -e DBUSER=${DBUSERNAME} -e DBHOST=${DBHOST} -e NAME=${NAME} -e API_KEY=${API_KEY}  -e CHANNEL=${CHANNEL} -e DB=${DB} --restart always a1t3r73t3/viewer:v0.02
+              env:
+                DBHOST: !GetAtt DBInstance.Endpoint.Address
+                DBUSERNAME: postgres
+                DB: postgres
+                DBPASS: !Ref DBPASS
+                NAME: !Ref ListnerUsername
+                API_KEY: !Ref TwitchApiKey
+                CHANNEL: !Ref Channel
+
+  Analyzer: 
+    Type: AWS::EC2::Instance
+    DependsOn: DBInstance
+    Properties: 
+      ImageId: "ami-035966e8adab4aaad"
+      InstanceType: "t2.micro"
+      SecurityGroups:
+      - Ref: SSHSecurityGroup
+      - Ref: HTTPSecurityGroup
+      - Ref: DBClientSecurityGroup
+      KeyName: !Ref KeyName
+      BlockDeviceMappings: 
+      - DeviceName: "/dev/sda1"
+        Ebs: 
+          VolumeType: "gp2"
+          VolumeSize: "8"
+      UserData:
+       Fn::Base64: !Sub |
+          #!/bin/bash -x
+          apt-get update
+          apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          add-apt-repository \
+            "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) \
+            stable"
+          apt-get update
+          apt-get install -y docker-ce
+          usermod -aG docker ubuntu
+          apt-get -y install python-pip
+          pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+          /usr/local/bin/cfn-init -v --stack ${AWS::StackName} --resource Analyzer --configsets default --region ${AWS::Region}
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default: 
+            - config1
+        config1:
+          commands:
+            customize: 
+              command: docker run -d -p 80:8080 -e DBPASSWORD=${DBPASS} -e DBUSER=${DBUSERNAME} -e CHANNEL=${CHANNEL} -e DBHOST=${DBHOST}  -e DB=${DB} --restart always a1t3r73t3/analyzer:v0.03
+              env:
+                DBHOST: !GetAtt DBInstance.Endpoint.Address
+                DBUSERNAME: postgres
+                DB: postgres
+                DBPASS: !Ref DBPASS
+                CHANNEL: !Ref Channel
+
+    
+  SSHSecurityGroup:  
       Type: 'AWS::EC2::SecurityGroup'  
       Properties:  
         GroupDescription: Enable SSH access via port 22  
@@ -61,3 +151,34 @@ Resources:
           FromPort: 22  
           ToPort: 22  
           CidrIp: 0.0.0.0/0
+
+  HTTPSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        GroupDescription: Allow http to client host
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database SG
+      SecurityGroupIngress:
+        - FromPort: 5432
+          IpProtocol: tcp
+          SourceSecurityGroupId: !GetAtt DBClientSecurityGroup.GroupId 
+          ToPort: 5432
+      Tags:
+        - Key: Resource
+          Value: DBSecurityGroup
+
+  DBClientSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database access SG
+      Tags:
+        - Key: Resource
+          Value: DBClientSecurityGroup

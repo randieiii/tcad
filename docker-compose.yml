@@ -1,0 +1,49 @@
+version: '3.4' 
+services:
+
+  viewer:
+    container_name: viewer
+    image: a1t3r73t3/viewer:v0.02
+    environment:
+      NAME: ${NAME}
+      API_KEY: ${API_KEY}
+      CHANNEL: ${CHANNEL}
+      DBPASSWORD: ${DBPASS}
+      DBUSER: postgres
+      DB: postgres
+      DBHOST: db
+
+  analyzer:
+    container_name: analyzer
+    image: a1t3r73t3/analyzer:v0.02
+    ports:
+    - "8181:8080"
+    environment:
+      CHANNEL: ${CHANNEL}
+      DBPASSWORD: ${DBPASS}
+      DBUSER: postgres
+      DB: postgres
+      DBHOST: db
+
+
+  db:
+    container_name: db
+    image: postgres:latest
+    ports:
+       - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data/
+    command: "-c 'max_locks_per_transaction=1024' -c 'shared_buffers=256MB' -c 'max_connections=200'"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      JAVA_OPTIONS: '-Xmx256m -Xms16m'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      start_period: 600s
+      retries: 10
+
+  

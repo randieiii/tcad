@@ -1,25 +1,26 @@
 {
-  "name": "bot",
+  "name": "viewer",
   "version": "0.0.1",
-  "description": "Listent to tchat",
-  "main": "index.js",
+  "description": "Listen to twitch chat",
+  "main": "chat_crawler.js",
   "scripts": {
-    "start": "node dankbot.js",
+    "start": "node chat_crawler.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/randy_ii/hadoop-kekw"
+    "url": "https://github.com/randy_ii/tcad"
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/randy_ii/hadoop-kekw/issues"
+    "url": "https://github.com/randy_ii/tcad/issues"
   },
-  "homepage": "https://github.com/randy_ii/hadoop-kekw",
+  "homepage": "https://github.com/randy_ii/tcad",
   "dependencies": {
     "csv-writer": "^1.6.0",
     "tmi.js": "^1.5.0",
     "cowsay": "^1.4.0",
-    "webhdfs": "^1.2.0"
+    "webhdfs": "^1.2.0",
+    "pg": "^7.18.1"
   }
 }
