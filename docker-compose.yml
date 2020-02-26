@@ -3,11 +3,12 @@ services:
 
   viewer:
     container_name: viewer
-    image: a1t3r73t3/viewer:v0.02
+    image: a1t3r73t3/viewer:v0.04
     environment:
       NAME: ${NAME}
       API_KEY: ${API_KEY}
-      CHANNEL: ${CHANNEL}
+      TWAPI: ${TWAPI}
+      CHANNELS: sodapoppin pokelawls nmplol greekgodx
       DBPASSWORD: ${DBPASS}
       DBUSER: postgres
       DB: postgres
@@ -15,7 +16,7 @@ services:
 
   analyzer:
     container_name: analyzer
-    image: a1t3r73t3/analyzer:v0.02
+    image: a1t3r73t3/analyzer:v0.04
     ports:
     - "8181:8080"
     environment:
