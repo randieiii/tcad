@@ -13,13 +13,10 @@ DBPASS = os.environ['DBPASSWORD']
 DBUSER = os.environ['DBUSER']
 DB = os.environ['DB']
 DBHOST = os.environ['DBHOST']
-CHANNEL = os.environ['CHANNEL']
 
 dh = data_handler.StreamerSlave(
-    f'postgresql://{DBUSER}:{DBPASS}@{DBHOST}:5432/{DB}',
-    f'select * from {CHANNEL} WHERE "timestamp" BETWEEN NOW() - INTERVAL \'10 MINUTES\' AND NOW()'
-    )
-
+    f'postgresql://{DBUSER}:{DBPASS}@{DBHOST}:5432/{DB}'
+)
 def draw_top(df_top, template_number):
         template = f"template{template_number}.html"
         chart = px.bar(df_top, x=df_top.keys()[0],y=df_top.keys()[1], color=df_top.iloc[:, 0])
@@ -33,14 +30,24 @@ def draw_top(df_top, template_number):
         return template
 
 class MainHandler(tornado.web.RequestHandler):
-    def get(self):
+    def get(self, stream='pokelawls'):
+    
         rnumber = random.random()
+        dh.query = f'select * from {stream} WHERE "timestamp" BETWEEN NOW() - INTERVAL \'10 HOURS\' AND NOW()'
+        
+
+        with open('./vol/sime_file.txt', 'w') as opened_file:
+            opened_file.write(dh.top_words_usage("msg", 10).to_string())
+            opened_file.write("\n\n\n")
+            opened_file.write(f"5heda = {str(dh.get_word_usage('5head', 'msg'))}")
+            opened_file.write("\n\n\n")
+            opened_file.write(dh.get_words_examples("cock", "msg", 10).to_string())
         df = dh.top_by_coulumn("username", 10)
         self.render(draw_top(df, rnumber), title="My title")
 
 def make_app():
     return tornado.web.Application([
-        (r"/", MainHandler),
+        (r"/([a-zA-Z\-0-9\.:,_]+)/", MainHandler),
     ])
 
 if __name__ == "__main__":

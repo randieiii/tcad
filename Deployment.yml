@@ -11,13 +11,16 @@ Parameters:
   ListnerUsername:
     Description: Username of account that is listning
     Type: String
-  Channel:
+  Channels:
     Type: String
     Description: Who you want to listen 
     Default: pokelawls
   TwitchApiKey:
     Type: String
     Description: Twitch api key
+  TwApi: 
+    Type: String
+    Description: Inner twitch api
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
     Description: SSH key name for EC2 instances
@@ -83,7 +86,7 @@ Resources:
         config1:
           commands:
             customize: 
-              command: docker run -d -v /tmp:/home/app/vol -e DBPASSWORD=${DBPASS} -e DBUSER=${DBUSERNAME} -e DBHOST=${DBHOST} -e NAME=${NAME} -e API_KEY=${API_KEY}  -e CHANNEL=${CHANNEL} -e DB=${DB} --restart always a1t3r73t3/viewer:v0.02
+              command: docker run -d -e DBPASSWORD=${DBPASS} -e TWAPI=${TwApi} -e DBUSER=${DBUSERNAME} -e DBHOST=${DBHOST} -e NAME=${NAME} -e API_KEY=${API_KEY}  -e CHANNELS=${CHANNELS} -e DB=${DB} --restart always a1t3r73t3/viewer:v0.04
               env:
                 DBHOST: !GetAtt DBInstance.Endpoint.Address
                 DBUSERNAME: postgres
@@ -91,7 +94,9 @@ Resources:
                 DBPASS: !Ref DBPASS
                 NAME: !Ref ListnerUsername
                 API_KEY: !Ref TwitchApiKey
-                CHANNEL: !Ref Channel
+                CHANNELS: !Ref Channels
+                TwApi: !Ref TwApi
+
 
   Analyzer: 
     Type: AWS::EC2::Instance
@@ -133,13 +138,12 @@ Resources:
         config1:
           commands:
             customize: 
-              command: docker run -d -p 80:8080 -e DBPASSWORD=${DBPASS} -e DBUSER=${DBUSERNAME} -e CHANNEL=${CHANNEL} -e DBHOST=${DBHOST}  -e DB=${DB} --restart always a1t3r73t3/analyzer:v0.03
+              command: docker run -d -v /tmp:/usr/src/app/vol -p 80:8080 -e DBPASSWORD=${DBPASS} -e DBUSER=${DBUSERNAME} -e DBHOST=${DBHOST}  -e DB=${DB} --restart always a1t3r73t3/analyzer:v0.04
               env:
                 DBHOST: !GetAtt DBInstance.Endpoint.Address
                 DBUSERNAME: postgres
                 DB: postgres
                 DBPASS: !Ref DBPASS
-                CHANNEL: !Ref Channel
 
     
   SSHSecurityGroup:  
