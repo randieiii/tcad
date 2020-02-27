@@ -24,7 +24,7 @@ class StreamerSlave:
         return self.data_frame[column].value_counts().rename_axis(column.capitalize()).reset_index(name='Count')[:top]
 
     def top_words_usage(self, column, top):
-        return self.get_df_str(column).split(expand=True).stack().value_counts()[:top]
+        return self.get_df_str(column).split(expand=True).stack().value_counts().rename_axis(column.capitalize()).reset_index(name='Count')[:top]
 
     def get_word_usage(self, word, column):
         return len(self.get_df_str(column).lower().str.findall(r"[\b|^]*({})\b".format(word), flags = re.I).sum())

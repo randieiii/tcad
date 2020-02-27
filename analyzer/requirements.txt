@@ -2,4 +2,6 @@ psycopg2
 tornado
 sqlalchemy
 pandas
+psutil
 plotly
+requests
