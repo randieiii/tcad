@@ -8,7 +8,7 @@ services:
       NAME: ${NAME}
       API_KEY: ${API_KEY}
       TWAPI: ${TWAPI}
-      CHANNELS: sodapoppin pokelawls nmplol greekgodx imls
+      CHANNELS: sodapoppin:pokelawls:nmplol:greekgodx:imls
       DBPASSWORD: ${DBPASS}
       DBUSER: postgres
       DB: postgres

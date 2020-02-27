@@ -3,7 +3,7 @@ const cowsay = require('cowsay');
 const { Pool, Client } = require('pg')
 const request = require('request');
 
-const CHANNELS = process.env.CHANNELS.split(" ");
+const CHANNELS = process.env.CHANNELS.split(":");
 const NAME = process.env.NAME
 const API_KEY = process.env.API_KEY
 const TW_API_KEY = process.env.TWAPI

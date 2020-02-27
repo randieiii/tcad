@@ -18,9 +18,6 @@ DBHOST = os.environ['DBHOST']
 ORCA = '/usr/bin/orca'
 SEARCHABLEW = "./searchablew"
 
-dh = data_handler.StreamerSlave(
-    f'postgresql://{DBUSER}:{DBPASS}@{DBHOST}:5432/{DB}'
-)
 words = [line.rstrip('\n') for line in open(SEARCHABLEW)]
 plotly.io.orca.config.executable = ORCA
 plotly.io.orca.config.save()
@@ -50,14 +47,21 @@ class MainHandler(tornado.web.RequestHandler):
         if not os.path.exists(f"./vol/{stream}"):
             os.mkdir(f"./vol/{stream}")
         rnumber = random.random()
-        dh.query = f'select * from {stream} WHERE "timestamp" BETWEEN NOW() - INTERVAL \'10 HOURS\' AND NOW()'
+        dh = data_handler.StreamerSlave(
+            f'postgresql://{DBUSER}:{DBPASS}@{DBHOST}:5432/{DB}',
+            f'select * from {stream} WHERE "timestamp" BETWEEN NOW() - INTERVAL \'10 HOURS\' AND NOW()'
+        )
+        top_users = dh.top_by_coulumn("username", 10)
+        top_words = dh.top_words_usage("msg", 10)
         with open(f'./vol/{stream}/{stream}_report.txt', 'w+') as opened_file:
             for i in words:
-                opened_file.write(f"Usage of word `{i}`:{str(dh.get_word_usage(i, 'msg'))}\n")
-                opened_file.write(dh.get_words_examples(i, "msg", 10)[['username', 'msg']].to_csv(index=False))
+                opened_file.write(top_users)
+                opened_file.write(top_words)
+                opened_file.write(f"\n\nUsage of word `{i}`:{str(dh.get_word_usage(i, 'msg'))}\n")
+                opened_file.write(dh.get_words_examples(i, "msg", 9)[['username', 'msg']].to_csv(index=False))
 
-        draw_top(dh.top_by_coulumn("username", 10), rnumber, stream, "Top10 humans in the chat")
-        draw_top(dh.top_words_usage("msg", 10), rnumber + 1, stream, "Top10 words in the chat")
+        draw_top(top_users, rnumber, stream, "Top10 humans in the chat")
+        draw_top(top_words, rnumber + 1, stream, "Top10 words in the chat")
         zipf = zipfile.ZipFile(f'./vol/{stream}.zip', 'w', zipfile.ZIP_DEFLATED)
         zipdir(f'./vol/{stream}/', zipf)
         zipf.close()
