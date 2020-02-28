@@ -24,9 +24,9 @@ plotly.io.orca.config.save()
 
 
 
-def draw_top(df_top, template_number, dir, title):
+def draw_top(df_top, template_number, dir, title, col):
         template = f"template{template_number}.html"
-        chart = px.bar(df_top, x=df_top.keys()[0],y=df_top.keys()[1], color=df_top.iloc[:, 0])
+        chart = px.bar(df_top, x=df_top.keys()[0],y=df_top.keys()[1], color=df_top.iloc[:, col])
         chart.update_layout(showlegend=False)
         chart.update_traces( 
             marker_line_color='rgb(8,48,107)',
@@ -49,19 +49,19 @@ class MainHandler(tornado.web.RequestHandler):
         rnumber = random.random()
         dh = data_handler.StreamerSlave(
             f'postgresql://{DBUSER}:{DBPASS}@{DBHOST}:5432/{DB}',
-            f'select * from {stream} WHERE "timestamp" BETWEEN NOW() - INTERVAL \'10 HOURS\' AND NOW()'
+            f'select * from {stream} WHERE "timestamp" BETWEEN NOW() - INTERVAL \'21 HOURS\' AND NOW()'
         )
         top_users = dh.top_by_coulumn("username", 10)
         top_words = dh.top_words_usage("msg", 10)
         with open(f'./vol/{stream}/{stream}_report.txt', 'w+') as opened_file:
+            opened_file.write(top_users.to_string())
+            opened_file.write(top_words.to_string())
             for i in words:
-                opened_file.write(top_users)
-                opened_file.write(top_words)
                 opened_file.write(f"\n\nUsage of word `{i}`:{str(dh.get_word_usage(i, 'msg'))}\n")
                 opened_file.write(dh.get_words_examples(i, "msg", 9)[['username', 'msg']].to_csv(index=False))
 
-        draw_top(top_users, rnumber, stream, "Top10 humans in the chat")
-        draw_top(top_words, rnumber + 1, stream, "Top10 words in the chat")
+        draw_top(top_users, rnumber, stream, "Top10 humans in the chat", 0)
+        draw_top(top_words, rnumber + 1, stream, "Top10 words in the chat", 1)
         zipf = zipfile.ZipFile(f'./vol/{stream}.zip', 'w', zipfile.ZIP_DEFLATED)
         zipdir(f'./vol/{stream}/', zipf)
         zipf.close()
