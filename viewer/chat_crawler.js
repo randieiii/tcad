@@ -7,6 +7,7 @@ const CHANNELS = process.env.CHANNELS.split(":");
 const NAME = process.env.NAME
 const API_KEY = process.env.API_KEY
 const TW_API_KEY = process.env.TWAPI
+const BACKEND = process.env.BACKEND
 const DB = {
   user: process.env.DBUSER,
   host: process.env.DBHOST,
@@ -16,7 +17,7 @@ const DB = {
 }
 
 
-var activeChannel = new Set();
+var activeChannel = {};
 
 function getActive(channel) {
   const options = {
@@ -27,10 +28,25 @@ function getActive(channel) {
   };
 
   request(options, function (error, response, body) {
+    console.log(response.statusCode)
     if (!error && response.statusCode == 200) {
+      console.log("Imain")
       const info = JSON.parse(body);
       console.log(`Response = ${info.data}`)
-      info.data != 0 ? activeChannel.add(channel) : activeChannel.delete(channel);
+      if (info.data != 0) {
+        activeChannel[channel] = {};
+        activeChannel[channel]["started_at"] = info.data[0].started_at;
+        activeChannel[channel]['live'] = true
+      } else {
+        if (activeChannel[channel] !== undefined && activeChannel[channel]['live'] == true) {
+          request(`${BACKEND}/${channel}/refrash_db_data`, function (error, response, body) {
+          console.error('error:', error); // Print the error if one occurred
+          console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
+          console.log('body:', body); // Print the HTML for the Google homepage.
+        });
+        activeChannel[channel]['live'] = false;
+        }
+      }
     }
   });
 }
@@ -47,7 +63,7 @@ dbclient.connect()
 var itemsProcessed = 0;
 
 function createTable(channel) {
-  dbclient.query(`CREATE TABLE IF NOT EXISTS ${channel} (id serial PRIMARY KEY, username VARCHAR (64) NOT NULL, msg TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`, (err, res) => {
+  dbclient.query(`CREATE TABLE IF NOT EXISTS ${channel} (id serial PRIMARY KEY, username VARCHAR (64) NOT NULL, msg TEXT, started_at VARCHAR (64) NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`, (err, res) => {
     console.log(err, res)
     itemsProcessed++;
     if(itemsProcessed === CHANNELS.length) {
@@ -78,17 +94,22 @@ function onMessageHandler (target, context, msg, self) {
   table = target.replace("#","")
   if (self) { return; } // Ignore messages from the bot
 
-  if (!context.username.match(/bot|streamelements/g) && activeChannel.has(target)) {
+  if (!context.username.match(/bot|streamelements|streamlabs/g) && (activeChannel[target] !== undefined) && (activeChannel[target]['live'] == true)) {
     console.log(cowsay.think({
       text : msg,
       cow : 'C3PO',
       mode: 'g'
     }) )  
 
-    pool.query(`INSERT into ${table} (username, msg) VALUES($1, $2);`, [context.username, msg], (err, res) => {
+    pool.query(`INSERT into ${table} (username, msg, started_at) VALUES($1, $2, $3);`, [context.username, msg, activeChannel["started_at"]], (err, res) => {
       console.log(err, res)
     })
+  } else {
+    console.log(activeChannel[target])
+    console.log(activeChannel[target]['live'])
+    console.log(!context.username.match(/bot|streamelements|streamlabs/g))
   }
+
 }
 
 function onConnectedHandler (addr, port) {

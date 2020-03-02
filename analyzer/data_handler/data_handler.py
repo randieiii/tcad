@@ -1,11 +1,11 @@
 import pandas
-import sqlalchemy
+from sqlalchemy import Table, Column, Integer, String, MetaData, create_engine
 import re 
 from collections import defaultdict
 
 class StreamerSlave:
     def __init__(self, dburl, query=None):
-        self.engine = sqlalchemy.create_engine(dburl)
+        self.engine = create_engine(dburl)
         self.query = query
         self.frame = None
         self.column_str = {}
@@ -26,10 +26,13 @@ class StreamerSlave:
             for word in re.findall(r"[a-zA-Z\-0-9\.:,_'\"]+", i):
                     result[word] += 1
         return pandas.DataFrame.from_dict(result, orient='index').sort_values(0, ascending=False)[:top].reset_index().rename(columns={0: 'Count', 'index':"Word"})
-
         # return .split(expand=True).stack().value_counts().rename_axis(column.capitalize()).reset_index(name='Count')[:top]
     def get_word_usage(self, word, column):
         return len(self.get_df_str(column).lower().str.findall(r"[\b|^]*({})\b".format(word), flags = re.I).sum())
     def get_words_examples(self, word, column, char_limit=10):
         mask = (self.get_df_str(column).len() >= char_limit )
         return self.data_frame[self.get_df_str(column).contains(r"[\b|^]*({})\b".format(word), flags = re.I)].loc[mask]
+    def write_df_to_sql(self, df, table_name):
+        df.to_sql(table_name, self.engine,  if_exists="append")
+    def read_sql_to_df(self, query):
+        return pandas.read_sql_query(query, con=self.engine)

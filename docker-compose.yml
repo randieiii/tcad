@@ -3,14 +3,15 @@ services:
 
   viewer:
     container_name: viewer
-    image: a1t3r73t3/viewer:v0.04
+    image: ba28c1d18bda
     environment:
       NAME: ${NAME}
       API_KEY: ${API_KEY}
       TWAPI: ${TWAPI}
-      CHANNELS: sodapoppin:pokelawls:nmplol:greekgodx:imls
+      CHANNELS: sodapoppin:pokelawls:nmplol:trainwreckstv
       DBPASSWORD: ${DBPASS}
       DBUSER: postgres
+      BACKEND: http://localhost:8181
       DB: postgres
       DBHOST: db
 
