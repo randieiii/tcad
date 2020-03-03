@@ -101,12 +101,11 @@ function onMessageHandler (target, context, msg, self) {
       mode: 'g'
     }) )  
 
-    pool.query(`INSERT into ${table} (username, msg, started_at) VALUES($1, $2, $3);`, [context.username, msg, activeChannel["started_at"]], (err, res) => {
+    pool.query(`INSERT into ${table} (username, msg, started_at) VALUES($1, $2, $3);`, [context.username, msg, activeChannel[target]["started_at"]], (err, res) => {
       console.log(err, res)
     })
   } else {
     console.log(activeChannel[target])
-    console.log(activeChannel[target]['live'])
     console.log(!context.username.match(/bot|streamelements|streamlabs/g))
   }
 

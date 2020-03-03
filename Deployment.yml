@@ -86,7 +86,7 @@ Resources:
         config1:
           commands:
             customize: 
-              command: docker run -d -e DBPASSWORD=${DBPASS} -e TWAPI=${TwApi} -e DBUSER=${DBUSERNAME} -e DBHOST=${DBHOST} -e NAME=${NAME} -e API_KEY=${API_KEY}  -e CHANNELS="${CHANNELS}" -e DB=${DB} --restart always a1t3r73t3/viewer:v0.04
+              command: docker run -d -e DBPASSWORD=${DBPASS} -e TWAPI=${TwApi} -e DBUSER=${DBUSERNAME} -e BACKEND=${BACKEND} -e DBHOST=${DBHOST} -e NAME=${NAME} -e API_KEY=${API_KEY}  -e CHANNELS="${CHANNELS}" -e DB=${DB} --restart always a1t3r73t3/viewer:v0.05
               env:
                 DBHOST: !GetAtt DBInstance.Endpoint.Address
                 DBUSERNAME: postgres
@@ -96,6 +96,7 @@ Resources:
                 API_KEY: !Ref TwitchApiKey
                 CHANNELS: !Ref Channels
                 TwApi: !Ref TwApi
+                BACKEND: !GetAtt Analyzer.PublicDnsName
 
 
   Analyzer: 
@@ -138,7 +139,7 @@ Resources:
         config1:
           commands:
             customize: 
-              command: docker run -d -p 80:8080 -e DBPASSWORD=${DBPASS} -e DBUSER=${DBUSERNAME} -e DBHOST=${DBHOST}  -e DB=${DB} --restart always a1t3r73t3/analyzer:v0.05
+              command: docker run -d -p 80:8080 -e DBPASSWORD=${DBPASS} -e DBUSER=${DBUSERNAME} -e DBHOST=${DBHOST}  -e DB=${DB} --restart always a1t3r73t3/analyzer:v0.06
               env:
                 DBHOST: !GetAtt DBInstance.Endpoint.Address
                 DBUSERNAME: postgres
