@@ -22,6 +22,12 @@ class StreamerSlave:
             self.column_str[column] = self.data_frame[column].str
         return self.column_str[column]
 
+    def top_users_sql(self):
+        return self.read_sql_to_df('select username, COUNT(*) AS "count" from sodapoppin group by username ORDER BY COUNT DESC;')
+
+    def amount_of_streams(self)
+        return self.read_sql_to_df('select DISTINCT started_at from sodapoppin;')
+
     def top_by_coulumn(self, column, top):
         return self.data_frame[column].value_counts().rename_axis(column.capitalize()).reset_index(name='Count')[:top]
 
@@ -43,7 +49,7 @@ class StreamerSlave:
     def write_df_to_sql(self, df, table_name, additional_value=None):
         if additional_value:
             (k,v), = additional_value.items()
-            df[k] = datetime.strptime(v, '%Y-%d-%mT%XZ').date().isoformat()
+            df[k] = datetime.strptime(v, '%Y-%m-%dT%XZ').date().isoformat()
         df.to_sql(table_name, self.engine,  if_exists="append")
 
     def read_sql_to_df(self, query):
