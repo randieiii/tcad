@@ -12,10 +12,6 @@ import zipfile
 
 from data_handler import data_handler
 
-DBPASS = os.environ['DBPASSWORD']
-DBUSER = os.environ['DBUSER']
-DB = os.environ['DB']
-DBHOST = os.environ['DBHOST']
 ORCA = '/usr/bin/orca'
 SEARCHABLEW = "./searchablew"
 
@@ -25,7 +21,6 @@ plotly.io.orca.config.save()
 
 
 def draw_top(df_top, template_number, dir, title, col):
-        template = f"template{template_number}.html"
         chart = px.bar(df_top, x=df_top.keys()[0],y=df_top.keys()[1], color=df_top.iloc[:, col])
         chart.update_layout(showlegend=False)
         chart.update_traces( 
@@ -34,8 +29,7 @@ def draw_top(df_top, template_number, dir, title, col):
         )
         chart.update_layout(title_text=title)
         chart.write_image(f"./vol/{dir}/chart{template_number}.png")
-        plot(chart, filename=template, show_link=False)
-        return template
+
     
 def draw_chart_by_time(df, title, dir):
     data = []
@@ -43,9 +37,9 @@ def draw_chart_by_time(df, title, dir):
         if item['started_at'].count() > 1:
             data.append(go.Scatter(
                 x=item['started_at'],
-                y=item['Count'],   
+                y=item['count'],   
                 name=key,     
-                marker={'size':15},
+                marker={'size':5},
                 marker_line_width=1
             ))
     layout = {'title': title}
@@ -60,17 +54,12 @@ def zipdir(path, ziph):
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self, stream='pokelawls'):
-        dh = data_handler.StreamerSlave(
-            f'postgresql://{DBUSER}:{DBPASS}@{DBHOST}:5432/{DB}',
-            f'select * from {stream} WHERE "timestamp" BETWEEN NOW() - INTERVAL \'21 HOURS\' AND NOW()'
-        )
-        word_by_time = dh.read_sql_to_df(f'select * from {stream}top_words_usage;') 
-        users_by_time = dh.read_sql_to_df(f'select * from {stream}top_by_coulumn;')
+        top_tab = data_handler.TopTable(stream)
 
-        draw_chart_by_time(word_by_time, 'top_words_usag', stream)
-        draw_chart_by_time(users_by_time, 'top_by_coulumn', stream)
+        for k, v in top_tab.read_tops().items():
+            draw_chart_by_time(v, k, stream)
 
-        zipf = zipfile.ZipFile(f'./vol/{stream}.zip', 'w', zipfile.ZIP_DEFLATED)
+        zipf = zipfile.ZipFile(f'./vol/{stream}.zip', 'Words', zipfile.ZIP_DEFLATED)
         zipdir(f'./vol/{stream}/', zipf)
         zipf.close()
 
@@ -91,25 +80,39 @@ class NotMainHandler(tornado.web.RequestHandler):
     def get(self, stream='pokelawls', request='refresh_db_data'):  
         if not os.path.exists(f"./vol/{stream}"):
             os.mkdir(f"./vol/{stream}")
-        rnumber = random.random()
-        dh = data_handler.StreamerSlave(
-            f'postgresql://{DBUSER}:{DBPASS}@{DBHOST}:5432/{DB}',
-            f'select * from {stream} WHERE "timestamp" BETWEEN NOW() - INTERVAL \'21 HOURS\' AND NOW()'
-        )
-        top_users = dh.top_by_coulumn("username", 10)
-        dh.write_df_to_sql(top_users, f"{stream}{dh.top_by_coulumn.__name__}", {"started_at": dh.data_frame["started_at"][0]})
-        top_words = dh.top_words_usage("msg", 10)
-        dh.write_df_to_sql(top_words, f"{stream}{dh.top_words_usage.__name__}", {"started_at": dh.data_frame["started_at"][0]})
-        with open(f'./vol/{stream}/{stream}_report.txt', 'w+') as opened_file:
-            opened_file.write(top_users.to_string())
-            opened_file.write(top_words.to_string())
-            for i in words:
-                opened_file.write(f"\n\nUsage of word `{i}`:{str(dh.get_word_usage(i, 'msg'))}\n")
-                opened_file.write(dh.get_words_examples(i, "msg", 9)[['username', 'msg']].to_csv(index=False))
 
-        draw_top(top_users, rnumber, stream, "Top10 humans in the chat", 0)
-        draw_top(top_words, rnumber + 1, stream, "Top10 words in the chat", 1)
-        self.write("Completed")
+        rnumber = random.random()
+
+        worker = data_handler.Worker(stream)
+
+        for j in worker.get_subset().values: 
+            print(j[0])
+            data_frame = worker._get_data_frame(j[0])
+
+            top_words = data_frame.top_words_usage('msg', 10)
+            worker._set_top_attr('Words', top_words)
+            top_users = worker.stream_t.top_users_sql()[:10]
+            worker._set_top_attr('Users', top_users)
+            
+            worker.top_t.write_df_to_sql({'started_at': j[0]})
+
+        # forming a shitty report
+            with open(f'./vol/{stream}/{stream}_report.txt', 'a+') as opened_file:
+                
+                # writing tu and tw to report file
+                opened_file.write(top_users.to_string())
+                opened_file.write(top_words.to_string())
+                
+                # for every word in SEARCHABLEW  (that is global btw ) finding usage and examples 
+                for i in words:
+                    opened_file.write(f"\n\nUsage of word `{i}`:{str(data_frame.get_word_usage(i, 'msg'))}\n")
+                    opened_file.write(data_frame.get_words_examples(i, "msg", 9)[['username', 'msg']].to_csv(index=False))
+
+
+            # draw top graphs 
+            draw_top(top_users, j[0] + "u", stream, "Top10 humans in the chat", 0)
+            draw_top(top_words, j[0] + "w", stream, "Top10 words in the chat", 1)
+            self.write("Completed")
 
 def make_app():
     return tornado.web.Application([
@@ -121,3 +124,22 @@ if __name__ == "__main__":
     app = make_app()
     app.listen(8080)
     tornado.ioloop.IOLoop.current().start()
+
+
+"""
+What we need to do: 
+    1. Find what streams are missing and calculate for them 
+    2. Do I want to calculate total every time? (Dont think so)
+    3. Create diff requests 
+        1. Update data and fullfill gaps in top (for ex)
+        2. Get report where I actually want to get total
+    4. Format report better()
+
+For refresh:
+    1. Get substrickt between top and chat log
+    2. Find tw/tu and write it.
+    3. Generate images for /\
+    4. Get examples for words and write to the report
+
+
+"""

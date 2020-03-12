@@ -78,20 +78,56 @@ class PandasHandler:
 
 class TopTable(ChannelTable):
     top_kind = {
-            'w': 'word_usage',
-            'u': 'user_usage'
+            'Words': 'word_usage',
+            'Users': 'user_usage'
         }
-    def __init__(self, stream, top_kind, top_df=None):
-        self.top_df = top_df
+    def __init__(self, stream, top_kind='Words', top_df=None):
+        self.top_df = {}
         self.tkind = top_kind
         super(TopTable, self).__init__(stream)
+
+    def read_tops(self):
+        result = {}
+        for k, v in self.top_kind.items():
+            result[k] = read_sql_to_df(f'select * from {self.stream}{v} ORDER BY started_at;')
+        return result 
 
     @property
     def table_name(self):
         return self.stream + self.top_kind[self.tkind]
 
     def write_df_to_sql(self, additional_value=None):
-        if additional_value:
-            (k,v), = additional_value.items()
-            self.top_df[k] = v #datetime.strptime(v, '%Y-%m-%dT%XZ').date().isoformat()
-        self.top_df.to_sql(self.table_name, Engine,  if_exists="append")
+        for mode, df in self.top_df.items():
+            if additional_value:
+                (k,v), = additional_value.items()
+                df[k] = v #datetime.strptime(v, '%Y-%m-%dT%XZ').date().isoformat()
+            print(df.__class__)
+            print(df)
+            df.to_sql(self.stream + self.top_kind[mode], Engine,  if_exists="append")
+
+
+class Worker:
+    def __init__(self, stream):
+        self.stream_t = StreamTable(stream)
+        self.top_t = TopTable(stream)
+
+    def get_subset(self):
+        try:  
+            result =  pandas.concat([self.stream_t.streams_count(), self.top_t.streams_count()]).drop_duplicates(keep=False)
+        except Exception:
+            result =  self.stream_t.streams_count()
+        return result
+        
+    def _set_top_attr(self, tkind, top_df):
+        self.top_t.tkind, self.top_t.top_df[tkind] = (tkind, top_df)
+
+    def _get_data_frame(self, time):
+        self.stream_t.time = time
+        return PandasHandler(self.stream_t.get_data_frame())
+
+    def main(self):
+        for j in self.get_subset().values: 
+            print(j[0])
+            self._set_top_attr('Words', self._get_data_frame(j[0]).top_words_usage('msg', 10))
+            self._set_top_attr('Users', self.stream_t.top_users_sql()[:10])
+            self.top_t.write_df_to_sql({'started_at': self.stream_t.time})
