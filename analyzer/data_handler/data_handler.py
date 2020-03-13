@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 from datetime import datetime
 
-from dbbase import Engine
+from .dbbase import Engine
 
 def read_sql_to_df(query):
     return pandas.read_sql_query(query, con=Engine)
@@ -64,7 +64,7 @@ class PandasHandler:
         for i in self.data_frame[column].to_dict().values():
             for word in re.findall(r"[a-zA-Z\-0-9\.:,_'\"]+", i):
                     result[word] += 1
-        return pandas.DataFrame.from_dict(result, orient='index').sort_values(0, ascending=False)[:top].reset_index().rename(columns={0: 'Count', 'index':"Word"})
+        return pandas.DataFrame.from_dict(result, orient='index').sort_values(0, ascending=False)[:top].reset_index().rename(columns={0: 'count', 'index':"word"})
         # return .split(expand=True).stack().value_counts().rename_axis(column.capitalize()).reset_index(name='Count')[:top]
 
     def get_word_usage(self, word, column):

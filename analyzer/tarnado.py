@@ -31,10 +31,10 @@ def draw_top(df_top, template_number, dir, title, col):
         chart.write_image(f"./vol/{dir}/chart{template_number}.png")
 
     
-def draw_chart_by_time(df, title, dir):
+def draw_chart_by_time(df, title, dir, points):
     data = []
     for key, item in df.groupby(df.keys()[1]):
-        if item['started_at'].count() > 1:
+        if item['started_at'].count() > points:
             data.append(go.Scatter(
                 x=item['started_at'],
                 y=item['count'],   
@@ -55,11 +55,11 @@ def zipdir(path, ziph):
 class MainHandler(tornado.web.RequestHandler):
     def get(self, stream='pokelawls'):
         top_tab = data_handler.TopTable(stream)
-
+        points = top_tab.streams_count().count()['started_at'] - 1
         for k, v in top_tab.read_tops().items():
-            draw_chart_by_time(v, k, stream)
+            draw_chart_by_time(v, k, stream, points)
 
-        zipf = zipfile.ZipFile(f'./vol/{stream}.zip', 'Words', zipfile.ZIP_DEFLATED)
+        zipf = zipfile.ZipFile(f'./vol/{stream}.zip', 'w', zipfile.ZIP_DEFLATED)
         zipdir(f'./vol/{stream}/', zipf)
         zipf.close()
 
@@ -93,7 +93,7 @@ class NotMainHandler(tornado.web.RequestHandler):
             worker._set_top_attr('Words', top_words)
             top_users = worker.stream_t.top_users_sql()[:10]
             worker._set_top_attr('Users', top_users)
-            
+
             worker.top_t.write_df_to_sql({'started_at': j[0]})
 
         # forming a shitty report
